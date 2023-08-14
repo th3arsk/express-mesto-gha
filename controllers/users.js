@@ -22,15 +22,23 @@ const getUser = (req, res) => {
 };
 
 const renameUser = (req, res) => {
-  const id = req.user._id;
-
-  return User.findById(id)
+  User.findByIdAndUpdate(req.params.id, { name: req.name, about: req.about })
     .then(user => res.status(200).send(user))
     .catch(() => res.status(500).send({ message: 'Произошла ошибка' }));
+
+}
+
+const changeAvatar = (req, res) => {
+  User.findByIdAndUpdate(req.params.id, { avatar: req.avatar })
+    .then(user => res.status(200).send(user))
+    .catch(() => res.status(500).send({ message: 'Произошла ошибка' }));
+
 }
 
 module.exports = {
   createUser,
   getUsers,
-  getUser
+  getUser,
+  renameUser,
+  changeAvatar
 }
