@@ -1,88 +1,46 @@
 const Card = require('../models/card');
+const NotFoundError = require('../errors/NotFoundError');
 
-const createCard = (req, res) => {
+const createCard = (req, res, next) => {
   const { name, link } = req.body;
 
   Card.create({ name, link })
-    .then((card) => res.status(201).send({ data: card }))
-    .catch((err) => {
-      if (err.name === 'ValidationError') {
-        res.status(400).send({ message: `Ошибка ${err}` });
-        console.log(`Произошла ошибка: ${err.name} ${err.message}`);
-      } else {
-        res.status(500).send({ message: 'Произошла ошибка' });
-        console.log(`Произошла ошибка: ${err.name} ${err.message}`);
-      }
-    });
+    .then((card) => res.send({ data: card }))
+    .catch(next);
 };
 
-const getCards = (_req, res) => {
+const getCards = (_req, res, next) => {
   Card.find()
-    .then((card) => res.status(200).send(card))
-    .catch(() => res.status(500).send({ message: 'Произошла ошибка' }));
+    .then((card) => res.send(card))
+    .catch(next);
 };
 
-const removeCard = (req, res) => {
+const removeCard = (req, res, next) => {
   Card.findByIdAndRemove(req.params.cardId)
-    .then((card) => res.status(200).send(card))
-    .catch((err) => {
-      if (err.name === 'CastError') {
-        res.status(400).send({ message: `Ошибка ${err}` });
-        console.log(`Произошла ошибка: ${err.name} ${err.message}`);
-      } else {
-        res.status(500).send({ message: 'Произошла ошибка' });
-      }
-    });
+    .then((card) => res.send(card))
+    .catch(next);
 };
 
-const likeCard = (req, res) => {
+const likeCard = (req, res, next) => {
   Card.findByIdAndUpdate(
     req.params.cardId,
     { $addToSet: { likes: req.user._id } },
     { new: true },
   )
-    .orFail()
-    .then((like) => res.status(200).send(like))
-    .catch((err) => {
-      if (err.name === 'DocumentNotFoundError') {
-        res.status(404).send({ message: `Ошибка ${err}` });
-        console.log(`Произошла ошибка: ${err.name} ${err.message}`);
-      }
-
-      if (err.name === 'CastError') {
-        res.status(400).send({ message: `Ошибка ${err}` });
-        console.log(`Произошла ошибка: ${err.name} ${err.message}`);
-      }
-
-      if (err.name !== ('CastError' || 'DocumentNotFoundError')) {
-        res.status(500).send({ message: 'Произошла ошибка на сервере' });
-      }
-    });
+    .orFail(new NotFoundError('Карточка с таким ID не найдена'))
+    .then((like) => res.send(like))
+    .catch(next);
 };
 
-const dislikeCard = (req, res) => {
+const dislikeCard = (req, res, next) => {
   Card.findByIdAndUpdate(
     req.params.cardId,
     { $pull: { likes: req.user._id } },
     { new: true },
   )
-    .orFail()
-    .then((like) => res.status(200).send(like))
-    .catch((err) => {
-      if (err.name === 'DocumentNotFoundError') {
-        res.status(404).send({ message: `Ошибка ${err}` });
-        console.log(`Произошла ошибка: ${err.name} ${err.message}`);
-      }
-
-      if (err.name === 'CastError') {
-        res.status(400).send({ message: `Ошибка ${err}` });
-        console.log(`Произошла ошибка: ${err.name} ${err.message}`);
-      }
-
-      if (err.name !== ('CastError' || 'DocumentNotFoundError')) {
-        res.status(500).send({ message: 'Произошла ошибка на сервере' });
-      }
-    });
+    .orFail(new NotFoundError('Карточка с таким ID не найдена'))
+    .then((like) => res.send(like))
+    .catch(next);
 };
 
 module.exports = {

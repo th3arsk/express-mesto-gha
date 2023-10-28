@@ -1,88 +1,73 @@
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 
-const createUser = (req, res) => {
-  const { name, about, avatar } = req.body;
+const NotFoundError = require('../errors/NotFoundError');
+const ValidationError = require('../errors/ValidationError');
 
-  User.create({ name, about, avatar })
-    .then((user) => res.status(201).send({ data: user }))
-    .catch((err) => {
-      if (err.name === 'ValidationError') {
-        res.status(400).send({ message: `Ошибка ${err}` });
-        console.log(`Произошла ошибка: ${err.name} ${err.message}`);
-      } else {
-        res.status(500).send({ message: 'Произошла ошибка' });
-        console.log(`Произошла ошибка: ${err.name} ${err.message}`);
-      }
+const createUser = (req, res, next) => {
+  const {
+    name,
+    about,
+    avatar,
+    email,
+    password,
+  } = req.body;
+
+  bcrypt.hash(password, 10)
+    .then((hash) => {
+      User.create({
+        name,
+        about,
+        avatar,
+        email,
+        password: hash,
+      })
+        .then((user) => res.send({ data: user }))
+        .catch(next);
     });
 };
 
-const getUsers = (_req, res) => {
-  return User.find()
-    .then((user) => res.status(200).send(user))
-    .catch(() => res.status(500).send({ message: 'Произошла ошибка' }));
+const getUsers = (_req, res, next) => {
+  User.find()
+    .then((user) => res.send(user))
+    .catch(next);
 };
 
-const getUser = (req, res) => {
+const getUser = (req, res, next) => {
   User.findById(req.params.userId)
-    .orFail()
-    .then((user) => res.status(200).send(user))
-    .catch((err) => {
-      if (err.name === 'CastError') {
-        res.status(400).send({ message: `Ошибка ${err}` });
-        console.log(`Произошла ошибка: ${err.name} ${err.message}`);
-      }
-
-      if (err.name === 'DocumentNotFoundError') {
-        res.status(404).send({ message: `Ошибка ${err}` });
-        console.log(`Произошла ошибка: ${err.name} ${err.message}`);
-      }
-
-      if (err.name !== ('CastError' || 'DocumentNotFoundError')) {
-        res.status(500).send({ message: 'Произошла ошибка на сервере' });
-      }
-    });
+    .orFail(new NotFoundError('Пользователь с таким ID не найден'))
+    .then((user) => res.send(user))
+    .catch(next);
 };
 
-const renameUser = (req, res) => {
+const renameUser = (req, res, next) => {
   User.findByIdAndUpdate(req.params.id, { name: req.name, about: req.about })
-    .orFail()
-    .then((user) => res.status(200).send(user))
-    .catch((err) => {
-      if (err.name === 'ValidationError') {
-        res.status(400).send({ message: `Ошибка ${err}` });
-        console.log(`Произошла ошибка: ${err.name} ${err.message}`);
-      }
-
-      if (err.name === 'DocumentNotFoundError') {
-        res.status(404).send({ message: `Ошибка ${err}` });
-        console.log(`Произошла ошибка: ${err.name} ${err.message}`);
-      }
-
-      if (err.name !== ('ValidationError' || 'DocumentNotFoundError')) {
-        res.status(500).send({ message: 'Произошла ошибка на сервере' });
-      }
-    });
+    .orFail(new NotFoundError('Пользователь с таким ID не найден'))
+    .then((user) => res.send(user))
+    .catch(next);
 };
 
-const changeAvatar = (req, res) => {
+const changeAvatar = (req, res, next) => {
   User.findByIdAndUpdate(req.params.id, { avatar: req.avatar })
-    .orFail()
-    .then((user) => res.status(200).send(user))
-    .catch((err) => {
-      if (err.name === 'ValidationError') {
-        res.status(400).send({ message: `Ошибка ${err}` });
-        console.log(`Произошла ошибка: ${err.name} ${err.message}`);
-      }
+    .orFail(new NotFoundError('Пользователь с таким ID не найден'))
+    .then((user) => res.send(user))
+    .catch(next);
+};
 
-      if (err.name === 'DocumentNotFoundError') {
-        res.status(404).send({ message: `Ошибка ${err}` });
-        console.log(`Произошла ошибка: ${err.name} ${err.message}`);
-      }
+const login = (req, res, next) => {
+  const { email, password } = req.body;
 
-      if (err.name !== ('ValidationError' || 'DocumentNotFoundError')) {
-        res.status(500).send({ message: 'Произошла ошибка на сервере' });
+  User.findUserByCredentials(email, password)
+    .then((user) => {
+      const token = jwt.sign({ _id: user._id }, 'secret-key', { expiresIn: '7d' });
+      res.status(200).cookie('jwt', token, { maxAge: 3600000, httpOnly: true }).send({ token });
+
+      if (!user) {
+        throw new NotFoundError('Пользователь не найден');
       }
-    });
+    })
+    .catch(next);
 };
 
 module.exports = {
@@ -91,4 +76,5 @@ module.exports = {
   getUser,
   renameUser,
   changeAvatar,
+  login,
 };
