@@ -4,6 +4,7 @@ const User = require('../models/user');
 
 const NotFoundError = require('../errors/NotFoundError');
 const ValidationError = require('../errors/ValidationError');
+const ConflictError = require('../errors/ConflictError');
 
 const createUser = (req, res, next) => {
   const {
@@ -24,7 +25,15 @@ const createUser = (req, res, next) => {
         password: hash,
       })
         .then((user) => res.send({ data: user }))
-        .catch(next);
+        .catch((err) => {
+          if (err.name === 'ValidationError') {
+            next(new ValidationError('Некорректные данные'));
+          } else if (err.code === 11000) {
+            next(new ConflictError('Такой пользователь уже существует'));
+          } else {
+            next(err);
+          }
+        });
     });
 };
 
@@ -45,14 +54,26 @@ const renameUser = (req, res, next) => {
   User.findByIdAndUpdate(req.params.id, { name: req.name, about: req.about })
     .orFail(new NotFoundError('Пользователь с таким ID не найден'))
     .then((user) => res.send(user))
-    .catch(next);
+    .catch((err) => {
+      if (err.name === 'ValidationError') {
+        next(new ValidationError('Некорректные данные'));
+      } else {
+        next(err);
+      }
+    });
 };
 
 const changeAvatar = (req, res, next) => {
   User.findByIdAndUpdate(req.params.id, { avatar: req.avatar })
     .orFail(new NotFoundError('Пользователь с таким ID не найден'))
     .then((user) => res.send(user))
-    .catch(next);
+    .catch((err) => {
+      if (err.name === 'ValidationError') {
+        next(new ValidationError('Некорректные данные'));
+      } else {
+        next(err);
+      }
+    });
 };
 
 const login = (req, res, next) => {
@@ -70,6 +91,14 @@ const login = (req, res, next) => {
     .catch(next);
 };
 
+const getMe = (req, res, next) => {
+  const userId = req.user._id;
+
+  User.findById(userId)
+    .then((user) => res.send(user))
+    .catch(next);
+};
+
 module.exports = {
   createUser,
   getUsers,
@@ -77,4 +106,5 @@ module.exports = {
   renameUser,
   changeAvatar,
   login,
+  getMe,
 };

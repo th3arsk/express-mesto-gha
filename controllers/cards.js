@@ -1,12 +1,20 @@
 const Card = require('../models/card');
 const NotFoundError = require('../errors/NotFoundError');
+const ValidationError = require('../errors/ValidationError');
+const AccessError = require('../errors/AccessError');
 
 const createCard = (req, res, next) => {
   const { name, link } = req.body;
 
   Card.create({ name, link })
     .then((card) => res.send({ data: card }))
-    .catch(next);
+    .catch((err) => {
+      if (err.name === 'ValidationError') {
+        next(new ValidationError('Некорректные данные'));
+      } else {
+        next(err);
+      }
+    });
 };
 
 const getCards = (_req, res, next) => {
@@ -17,7 +25,13 @@ const getCards = (_req, res, next) => {
 
 const removeCard = (req, res, next) => {
   Card.findByIdAndRemove(req.params.cardId)
-    .then((card) => res.send(card))
+    .then((card) => {
+      if (card.owner === req.user._id) {
+        res.send(card);
+      } else {
+        next(new AccessError('Некорректные данные'));
+      }
+    })
     .catch(next);
 };
 
