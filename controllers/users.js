@@ -24,7 +24,7 @@ const createUser = (req, res, next) => {
         email,
         password: hash,
       })
-        .then((user) => res.send({ data: user }))
+        .then((user) => res.status(201).send({ data: user }))
         .catch((err) => {
           if (err.name === 'ValidationError') {
             next(new ValidationError('Некорректные данные'));
@@ -51,7 +51,9 @@ const getUser = (req, res, next) => {
 };
 
 const renameUser = (req, res, next) => {
-  User.findByIdAndUpdate(req.params.id, { name: req.name, about: req.about })
+  const { name, about } = req.body;
+
+  User.findByIdAndUpdate(req.user._id, { name, about }, { runValidators: true, new: true })
     .orFail(new NotFoundError('Пользователь с таким ID не найден'))
     .then((user) => res.send(user))
     .catch((err) => {
@@ -64,7 +66,9 @@ const renameUser = (req, res, next) => {
 };
 
 const changeAvatar = (req, res, next) => {
-  User.findByIdAndUpdate(req.params.id, { avatar: req.avatar })
+  const { avatar } = req.body;
+
+  User.findByIdAndUpdate(req.user._id, { avatar }, { runValidators: true, new: true })
     .orFail(new NotFoundError('Пользователь с таким ID не найден'))
     .then((user) => res.send(user))
     .catch((err) => {

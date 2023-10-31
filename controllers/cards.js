@@ -5,9 +5,10 @@ const AccessError = require('../errors/AccessError');
 
 const createCard = (req, res, next) => {
   const { name, link } = req.body;
+  const owner = req.user._id;
 
-  Card.create({ name, link })
-    .then((card) => res.send({ data: card }))
+  Card.create({ name, link, owner })
+    .then((card) => res.status(201).send({ data: card }))
     .catch((err) => {
       if (err.name === 'ValidationError') {
         next(new ValidationError('Некорректные данные'));
@@ -24,12 +25,16 @@ const getCards = (_req, res, next) => {
 };
 
 const removeCard = (req, res, next) => {
-  Card.findByIdAndRemove(req.params.cardId)
+  const { cardId } = req.params;
+
+  Card.findById(cardId)
+    .orFail(new NotFoundError('Карточка с таким ID не найдена'))
     .then((card) => {
-      if (card.owner === req.user._id) {
-        res.send(card);
-      } else {
-        next(new AccessError('Некорректные данные'));
+      if (card.owner.toString() === req.user._id) {
+        Card.findByIdAndDelete(cardId)
+          .then(res.json({ deletedData: card }));
+      } else if (card.owner !== req.user._id) {
+        throw new AccessError('Нет доступа');
       }
     })
     .catch(next);
